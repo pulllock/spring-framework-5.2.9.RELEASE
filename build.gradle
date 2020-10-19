@@ -75,7 +75,7 @@ configure(allprojects) { project ->
 			dependencySet(group: 'org.codehaus.groovy', version: '2.5.13') {
 				entry 'groovy'
 				entry 'groovy-jsr223'
-				entry 'groovy-templates'
+				entry 'grooy-templates'
 				entry 'groovy-test'
 				entry 'groovy-xml'
 			}
@@ -405,7 +405,7 @@ configure(rootProject) {
 	apply plugin: "io.spring.nohttp"
 	apply plugin: 'org.springframework.build.api-diff'
 	apply from: "${rootDir}/gradle/publications.gradle"
-	apply from: "${rootDir}/gradle/docs.gradle"
+	// apply from: "${rootDir}/gradle/docs.gradle"
 
 	nohttp {
 		source.exclude "**/test-output/**"
@@ -425,9 +425,9 @@ configure(rootProject) {
 	publishing {
 		publications {
 			mavenJava(MavenPublication) {
-				artifact docsZip
-				artifact schemaZip
-				artifact distZip
+				// artifact docsZip
+				// artifact schemaZip
+				// artifact distZip
 			}
 		}
 	}
