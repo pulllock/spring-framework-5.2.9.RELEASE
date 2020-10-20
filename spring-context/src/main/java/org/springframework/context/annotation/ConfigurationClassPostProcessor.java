@@ -261,29 +261,38 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	/**
 	 * Build and validate a configuration model based on the registry of
 	 * {@link Configuration} classes.
+	 * 处理配置类的Bean定义，就是处理基于@Configuration注解的配置类
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
+        // 用来存储候选的BeanDefinition
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
+		// 从容器中获取所有的Bean定义名称
 		String[] candidateNames = registry.getBeanDefinitionNames();
 
 		for (String beanName : candidateNames) {
+		    // 根据名字从容器中获取Bean定义
 			BeanDefinition beanDef = registry.getBeanDefinition(beanName);
+			// 已经被当做配置类处理过了
 			if (beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE) != null) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
+			// 校验给定的Bean定义是不是一个配置类，是的话加到候选的List中
+            // @Configuration，@Component，@ComponentScan，@Import，@ImportResource，@Bean等注解的都是
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
 			}
 		}
 
 		// Return immediately if no @Configuration classes were found
+        // 没有@Configuration注解的类，直接返回
 		if (configCandidates.isEmpty()) {
 			return;
 		}
 
 		// Sort by previously determined @Order value, if applicable
+        // 根据@Order注解配置进行排序
 		configCandidates.sort((bd1, bd2) -> {
 			int i1 = ConfigurationClassUtils.getOrder(bd1.getBeanDefinition());
 			int i2 = ConfigurationClassUtils.getOrder(bd2.getBeanDefinition());
@@ -309,14 +318,19 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Parse each @Configuration class
+        // 使用ConfigurationClassParser来挨个解析@Configuration注解的类
 		ConfigurationClassParser parser = new ConfigurationClassParser(
 				this.metadataReaderFactory, this.problemReporter, this.environment,
 				this.resourceLoader, this.componentScanBeanNameGenerator, registry);
 
+		// 候选的Bean定义
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
+		// 已经解析过的配置类
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
+		    // 使用ConfigurationClassParser解析配置类的Bean定义
 			parser.parse(candidates);
+			// 校验
 			parser.validate();
 
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
