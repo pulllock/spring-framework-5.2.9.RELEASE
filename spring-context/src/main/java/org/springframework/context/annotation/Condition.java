@@ -26,6 +26,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  * <p>Conditions are checked immediately before the bean-definition is due to be
  * registered and are free to veto registration based on any criteria that can
  * be determined at that point.
+ * 在注册Bean定义之前检查，可以决定Bean定义是否注册
  *
  * <p>Conditions must follow the same restrictions as {@link BeanFactoryPostProcessor}
  * and take care to never interact with bean instances. For more fine-grained control
@@ -48,6 +49,7 @@ public interface Condition {
 	 * or {@link org.springframework.core.type.MethodMetadata method} being checked
 	 * @return {@code true} if the condition matches and the component can be registered,
 	 * or {@code false} to veto the annotated component's registration
+	 * 看条件是否匹配
 	 */
 	boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata);
 
