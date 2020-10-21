@@ -117,6 +117,7 @@ class ConfigurationClassBeanDefinitionReader {
 	public void loadBeanDefinitions(Set<ConfigurationClass> configurationModel) {
 		TrackedConditionEvaluator trackedConditionEvaluator = new TrackedConditionEvaluator();
 		for (ConfigurationClass configClass : configurationModel) {
+			// 加载配置类的Bean定义
 			loadBeanDefinitionsForConfigurationClass(configClass, trackedConditionEvaluator);
 		}
 	}
@@ -128,6 +129,7 @@ class ConfigurationClassBeanDefinitionReader {
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
 
+		// 该配置类需要忽略，则从容器中将Bean定义删除
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
 			String beanName = configClass.getBeanName();
 			if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
@@ -137,14 +139,22 @@ class ConfigurationClassBeanDefinitionReader {
 			return;
 		}
 
+		// 是被导入的类
 		if (configClass.isImported()) {
+			// 注解被导入的类的Bean定义
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
+
+		// 注解了@Bean的方法，之前步骤没有解析，放到这里解析
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
 
+		// @ImportResource导入的资源，这里进行解析，可能有groovy或者xml等资源，
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+
+		// ImportBeanDefinitionRegistrar要导入的Bean定义，在这里解析，
+		// 调用ImportBeanDefinitionRegistrar.registerBeanDefinitions方法
 		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 	}
 
@@ -181,6 +191,7 @@ class ConfigurationClassBeanDefinitionReader {
 		String methodName = metadata.getMethodName();
 
 		// Do we need to mark the bean as skipped by its condition?
+		// 根据@Conditional注解判断是否需要跳过
 		if (this.conditionEvaluator.shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN)) {
 			configClass.skippedBeanMethods.add(methodName);
 			return;

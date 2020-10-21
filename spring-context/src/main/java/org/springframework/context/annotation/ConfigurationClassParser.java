@@ -271,7 +271,13 @@ class ConfigurationClassParser {
 		// 递归处理配置类和其父类
 		SourceClass sourceClass = asSourceClass(configClass, filter);
 		do {
-			// 解析配置类
+			/**
+			 * 解析配置类
+			 * 这里面解析了@Component、@PropertySources、@ComponentScan、@Import、@ImportResource
+			 * 以及@Bean、接口默认方法、父类
+			 * 其中@Import的ImportBeanDefinitionRegistrar、@Bean方法、@ImportResource等都没有直接处理，
+			 * 只是记录下来，后面步骤进行处理
+			 */
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
 		while (sourceClass != null);
@@ -346,6 +352,7 @@ class ConfigurationClassParser {
 		processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
 
 		// Process any @ImportResource annotations
+		// 处理@ImportResource注解
 		AnnotationAttributes importResource =
 				AnnotationConfigUtils.attributesFor(sourceClass.getMetadata(), ImportResource.class);
 		if (importResource != null) {
@@ -353,26 +360,32 @@ class ConfigurationClassParser {
 			Class<? extends BeanDefinitionReader> readerClass = importResource.getClass("reader");
 			for (String resource : resources) {
 				String resolvedResource = this.environment.resolveRequiredPlaceholders(resource);
+				// 这里没有直接处理要导入的资源，而是留在后面步骤进行处理
 				configClass.addImportedResource(resolvedResource, readerClass);
 			}
 		}
 
 		// Process individual @Bean methods
+		// 处理@Bean注解的方法
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
+			// 这里收集了方法，也没有直接进行处理，后面会处理
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
 		}
 
 		// Process default methods on interfaces
+		// 处理接口的默认方法
 		processInterfaces(configClass, sourceClass);
 
 		// Process superclass, if any
+		// 处理父类
 		if (sourceClass.getMetadata().hasSuperClass()) {
 			String superclass = sourceClass.getMetadata().getSuperClassName();
 			if (superclass != null && !superclass.startsWith("java") &&
 					!this.knownSuperclasses.containsKey(superclass)) {
 				this.knownSuperclasses.put(superclass, configClass);
 				// Superclass found, return its annotation metadata and recurse
+				// 返回父类，继续递归处理
 				return sourceClass.getSuperClass();
 			}
 		}
@@ -432,6 +445,7 @@ class ConfigurationClassParser {
 
 	/**
 	 * Retrieve the metadata for all <code>@Bean</code> methods.
+	 * 获取注解了@Bean的方法的元数据
 	 */
 	private Set<MethodMetadata> retrieveBeanMethodMetadata(SourceClass sourceClass) {
 		AnnotationMetadata original = sourceClass.getMetadata();
@@ -611,6 +625,7 @@ class ConfigurationClassParser {
 			this.importStack.push(configClass);
 			try {
 				for (SourceClass candidate : importCandidates) {
+					// ImportSelector的实现
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
 						Class<?> candidateClass = candidate.loadClass();
@@ -624,11 +639,14 @@ class ConfigurationClassParser {
 							this.deferredImportSelectorHandler.handle(configClass, (DeferredImportSelector) selector);
 						}
 						else {
+							// selectImports方法中需要自己实现哪些类需要被导入
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames, exclusionFilter);
+							// 递归导入
 							processImports(configClass, currentSourceClass, importSourceClasses, exclusionFilter, false);
 						}
 					}
+					// ImportBeanDefinitionRegistrar的实现
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
 						// Candidate class is an ImportBeanDefinitionRegistrar ->
 						// delegate to it to register additional bean definitions
@@ -636,13 +654,16 @@ class ConfigurationClassParser {
 						ImportBeanDefinitionRegistrar registrar =
 								ParserStrategyUtils.instantiateClass(candidateClass, ImportBeanDefinitionRegistrar.class,
 										this.environment, this.resourceLoader, this.registry);
+						// 这里没有直接调用ImportBeanDefinitionRegistrar的方法，而是留在后面步骤中处理
 						configClass.addImportBeanDefinitionRegistrar(registrar, currentSourceClass.getMetadata());
 					}
 					else {
 						// Candidate class not an ImportSelector or ImportBeanDefinitionRegistrar ->
 						// process it as an @Configuration class
+						// 既不是ImportSelector也不是ImportBeanDefinitionRegistrar，作为@Configuration注解的配置类来导入
 						this.importStack.registerImport(
 								currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
+						// 递归处理配置类
 						processConfigurationClass(candidate.asConfigClass(configClass), exclusionFilter);
 					}
 				}
