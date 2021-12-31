@@ -41,11 +41,20 @@ import org.springframework.util.FastByteArrayOutputStream;
  * @author Juergen Hoeller
  * @since 4.1.3
  * @see ContentCachingRequestWrapper
+ *
+ * Servlet的响应的流一旦被读取后，就没法再次读取，需要使用ContentCachingResponseWrapper来进行包装，将响应
+ * 的流缓存，使用完流后使用缓存来恢复，后续就能再次使用。
  */
 public class ContentCachingResponseWrapper extends HttpServletResponseWrapper {
 
+	/**
+	 * 缓存响应内容
+	 */
 	private final FastByteArrayOutputStream content = new FastByteArrayOutputStream(1024);
 
+	/**
+	 * 包装后的ResponseServletOutputStream
+	 */
 	@Nullable
 	private ServletOutputStream outputStream;
 
@@ -96,6 +105,11 @@ public class ContentCachingResponseWrapper extends HttpServletResponseWrapper {
 		super.sendRedirect(location);
 	}
 
+	/**
+	 * 使用ResponseServletOutputStream进行包装
+	 * @return
+	 * @throws IOException
+	 */
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
 		if (this.outputStream == null) {
@@ -194,6 +208,8 @@ public class ContentCachingResponseWrapper extends HttpServletResponseWrapper {
 	/**
 	 * Copy the complete cached body content to the response.
 	 * @since 4.2
+	 *
+	 * 将缓存的响应体内容拷贝到响应的OutputStream中
 	 */
 	public void copyBodyToResponse() throws IOException {
 		copyBodyToResponse(true);
@@ -204,15 +220,22 @@ public class ContentCachingResponseWrapper extends HttpServletResponseWrapper {
 	 * @param complete whether to set a corresponding content length
 	 * for the complete cached body content
 	 * @since 4.2
+	 *
+	 * 将缓存的响应体内容拷贝到响应的OutputStream中
 	 */
 	protected void copyBodyToResponse(boolean complete) throws IOException {
 		if (this.content.size() > 0) {
+			// 原始的响应
 			HttpServletResponse rawResponse = (HttpServletResponse) getResponse();
 			if ((complete || this.contentLength != null) && !rawResponse.isCommitted()) {
+				// 设置响应的content-length
 				rawResponse.setContentLength(complete ? this.content.size() : this.contentLength);
 				this.contentLength = null;
 			}
+			// 将缓存中的内容写到OutputStream中
 			this.content.writeTo(rawResponse.getOutputStream());
+
+			// 重置缓存
 			this.content.reset();
 			if (complete) {
 				super.flushBuffer();
@@ -221,8 +244,14 @@ public class ContentCachingResponseWrapper extends HttpServletResponseWrapper {
 	}
 
 
+	/**
+	 * 缓存ServletOutputStream的包装类
+	 */
 	private class ResponseServletOutputStream extends ServletOutputStream {
 
+		/**
+		 * 缓存的ServletOutputStream
+		 */
 		private final ServletOutputStream os;
 
 		public ResponseServletOutputStream(ServletOutputStream os) {

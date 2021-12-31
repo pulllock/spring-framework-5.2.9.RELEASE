@@ -47,17 +47,25 @@ import org.springframework.lang.Nullable;
  * @author Brian Clozel
  * @since 4.1.3
  * @see ContentCachingResponseWrapper
+ *
+ * Servlet的请求体的流一旦被读取后，就没法再次读取，需要使用ContentCachingRequestWrapper缓存起来。
  */
 public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 
 	private static final String FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
 
 
+	/**
+	 * 用来缓存body的内容
+	 */
 	private final ByteArrayOutputStream cachedContent;
 
 	@Nullable
 	private final Integer contentCacheLimit;
 
+	/**
+	 * 包装后的ContentCachingInputStream
+	 */
 	@Nullable
 	private ServletInputStream inputStream;
 
@@ -71,7 +79,11 @@ public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 	 */
 	public ContentCachingRequestWrapper(HttpServletRequest request) {
 		super(request);
+
+		// 请求的content-length
 		int contentLength = request.getContentLength();
+
+		// 缓存body的内容
 		this.cachedContent = new ByteArrayOutputStream(contentLength >= 0 ? contentLength : 1024);
 		this.contentCacheLimit = null;
 	}
@@ -85,11 +97,18 @@ public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 	 */
 	public ContentCachingRequestWrapper(HttpServletRequest request, int contentCacheLimit) {
 		super(request);
+
+		// 缓存body的内容
 		this.cachedContent = new ByteArrayOutputStream(contentCacheLimit);
 		this.contentCacheLimit = contentCacheLimit;
 	}
 
 
+	/**
+	 * 使用ContentCachingInputStream进行包装
+	 * @return
+	 * @throws IOException
+	 */
 	@Override
 	public ServletInputStream getInputStream() throws IOException {
 		if (this.inputStream == null) {
@@ -151,10 +170,16 @@ public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 				HttpMethod.POST.matches(getMethod()));
 	}
 
+	/**
+	 * 将请求的参数写到body内容的缓存中，格式：
+	 * name=value&name=value&...
+	 */
 	private void writeRequestParametersToCachedContent() {
 		try {
 			if (this.cachedContent.size() == 0) {
+				// 请求的编码
 				String requestEncoding = getCharacterEncoding();
+				// 请求参数
 				Map<String, String[]> form = super.getParameterMap();
 				for (Iterator<String> nameIterator = form.keySet().iterator(); nameIterator.hasNext(); ) {
 					String name = nameIterator.next();
@@ -204,8 +229,14 @@ public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 	}
 
 
+	/**
+	 * 缓存ServletInputStream的包装类
+	 */
 	private class ContentCachingInputStream extends ServletInputStream {
 
+		/**
+		 * 缓存的ServletInputStream
+		 */
 		private final ServletInputStream is;
 
 		private boolean overflow = false;
